@@ -6,6 +6,8 @@ provider:
   runtime: nodejs8.10
   memorySize: 128
   timeout: 30
+  environment:
+    S3_BUCKET_EPISODE: ${env:S3_BUCKET_EPISODE}
   iamRoleStatements:
     - Effect: "Allow"
       Action:
@@ -13,6 +15,20 @@ provider:
         - "dynamodb:DeleteItem"
         - "dynamodb:GetItem"
       Resource: "*"
+    - Effect: "Allow"
+      Action:
+        - "s3:*"
+      Resource:
+        - "arn:aws:s3:::${env:S3_BUCKET_EPISODE}"
+
+resources:
+  Resources:
+    podcastEpisodeCache:
+      Type: AWS::S3::Bucket
+      DeletionPolicy: Retain
+      Properties:
+        AccessControl: PublicRead
+        BucketName: ${env:S3_BUCKET_EPISODE}
 
 package:
   include:
