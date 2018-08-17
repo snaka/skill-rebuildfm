@@ -1,0 +1,33 @@
+{
+  "manifest": {
+    "publishingInformation": {
+      "locales": {
+        "ja-JP": {
+          "summary": "Sample Short Description",
+          "examplePhrases": [
+            "Alexa open hello world",
+            "Alexa tell hello world hello",
+            "Alexa ask hello world say hello"
+          ],
+          "keywords": [],
+          "name": "rebuild-fm-player",
+          "smallIconUri": "https://s3-ap-northeast-1.amazonaws.com/snaka-public/alexa-icons/Sample_108.png",
+          "description": "Sample Full Description",
+          "largeIconUri": "https://s3-ap-northeast-1.amazonaws.com/snaka-public/alexa-icons/Sample_512.png"
+        }
+      },
+      "isAvailableWorldwide": true,
+      "testingInstructions": "Sample Testing Instructions.",
+      "category": "PODCAST",
+      "distributionCountries": []
+    },
+    "apis": {
+      "custom": {
+        "endpoint": {
+          "sourceDir": "lambda/custom"
+        }
+      }
+    },
+    "manifestVersion": "1.0"
+  }
+}

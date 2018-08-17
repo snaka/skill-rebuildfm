@@ -1,0 +1,5 @@
+.ask
+node_modules
+*.swp
+.envrc
+.serverless
