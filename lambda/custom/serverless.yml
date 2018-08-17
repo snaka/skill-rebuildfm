@@ -4,7 +4,7 @@ provider:
   name: aws
   region: ap-northeast-1
   runtime: nodejs8.10
-  memorySize: 128
+  memorySize: 640
   timeout: 30
   environment:
     S3_BUCKET_EPISODE: ${env:S3_BUCKET_EPISODE}
@@ -17,9 +17,11 @@ provider:
       Resource: "*"
     - Effect: "Allow"
       Action:
-        - "s3:*"
+        - "s3:PutObject"
+        - "s3:GetObject"
+        - "s3:PutObjectAcl"
       Resource:
-        - "arn:aws:s3:::${env:S3_BUCKET_EPISODE}"
+        - "arn:aws:s3:::${env:S3_BUCKET_EPISODE}/*"
 
 resources:
   Resources:

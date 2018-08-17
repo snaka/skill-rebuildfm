@@ -18,15 +18,16 @@ const targetPodcast = exports.config = {
   MAX_EPISODE_COUNT: 100
 }
 
-function pickSslMediaUrl (enclosures) {
+function pickSslMediaUrl (enclosures, disableUseSsl = false) {
   const sslMedia = enclosures.find(item => item.url.startsWith('https'))
   if (sslMedia) return sslMedia.url
 
   const nonSslMedia = enclosures[0]
   // Alexa Skill の AudioPlayer は https: で提供されるURLしか対応していないため強引に書き換える
-  if (nonSslMedia) return nonSslMedia.url.replace(/^http:/, 'https:')
+  console.log('disableUseSsl:', disableUseSsl)
+  if (nonSslMedia && !disableUseSsl) return nonSslMedia.url.replace(/^http:/, 'https:')
 
-  throw new Error('Media not found.')
+  return nonSslMedia.url
 }
 
 async function fetchHead (url) {
@@ -70,7 +71,7 @@ async function restoreFromCache (podcastId, etag) {
   }
 }
 
-exports.getEpisodeInfo = (podcastId, index) => {
+exports.getEpisodeInfo = (podcastId, index, option={ useOriginalUrl: false }) => {
   return new Promise(async (resolve, reject) => {
     if (!targetPodcast) throw new Error('INVALID PODCAST ID')
 
@@ -103,7 +104,7 @@ exports.getEpisodeInfo = (podcastId, index) => {
     feedparser.on('data', async (data) => {
       console.log('on data:', data.title)
       if (episodes.length < targetPodcast.MAX_EPISODE_COUNT) {
-        const audioUrl = pickSslMediaUrl(data.enclosures)
+        const audioUrl = pickSslMediaUrl(data.enclosures, option['useOriginalUrl'])
         episodes.push({
           title: data.title,
           url: audioUrl,
