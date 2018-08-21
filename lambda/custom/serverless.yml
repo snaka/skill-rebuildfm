@@ -46,4 +46,4 @@ functions:
   cacheUpdator:
     handler: cacheUpdator.handler
     events:
-      - schedule: rate(10 minutes)
+      - schedule: rate(5 minutes)
