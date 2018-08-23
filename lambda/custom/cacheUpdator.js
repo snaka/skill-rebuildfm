@@ -22,24 +22,29 @@ async function fetchEpisode(url) {
   })
 }
 
+async function downloadEpisodeToS3(originalUrl) {
+  const episodeBody = await fetchEpisode(originalUrl)
+  const bucket = process.env.S3_BUCKET_EPISODE
+  const key = path.basename(originalUrl)
+
+  try {
+    let head = await s3.headObject({ Bucket: bucket, Key: key }).promise()
+    console.log(`Episode ${key} already downloaded.`)
+    return `https://s3-ap-northeast-1.amazonaws.com/${bucket}/${key}`
+  } catch(err) {
+    console.log('The episode does not exist in S3, the episode will be downloaded.')
+  }
+
+  await s3.putObject({ Bucket: bucket, Key: key, Body: episodeBody }).promise()
+  await s3.putObjectAcl({ Bucket: bucket, Key: key, ACL: 'public-read' }).promise()
+  return `https://s3-ap-northeast-1.amazonaws.com/${bucket}/${key}`
+}
+
 exports.handler = async (event) => {
   assert(process.env.S3_BUCKET_EPISODE, 'S3_BUCKET_EPISODE is not defined.')
 
   const episode = await podcast.getEpisodeInfo(podcast.config.ID, 0, { useOriginalUrl: true })
   console.log('episode.url:', episode.url)
 
-  const episodeBody = await fetchEpisode(episode.url)
-  const bucket = process.env.S3_BUCKET_EPISODE
-  const key = path.basename(episode.url)
-
-  try {
-    let head = await s3.headObject({ Bucket: bucket, Key: key }).promise()
-    console.log(`Episode ${key} is already exist.`)
-    return
-  } catch(err) {
-    console.log('Episode file is not exist yet. It will download.')
-  }
-
-  await s3.putObject({ Bucket: bucket, Key: key, Body: episodeBody }).promise()
-  await s3.putObjectAcl({ Bucket: bucket, Key: key, ACL: 'public-read' }).promise()
+  return episode.url
 }

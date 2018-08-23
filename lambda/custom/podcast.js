@@ -1,5 +1,6 @@
 'use strict'
 
+const path = require('path')
 const request = require('request')
 const FeedParser = require('feedparser')
 const AWS = require('aws-sdk')
@@ -8,6 +9,7 @@ AWS.config.update({
   region: process.env.AWS_REGION || 'us-east-1'
 })
 const dynamoDb = new AWS.DynamoDB.DocumentClient()
+const s3 = new AWS.S3()
 
 const targetPodcast = exports.config = {
   FEED_URL: 'http://feeds.rebuild.fm/rebuildfm',
@@ -31,6 +33,7 @@ function pickSslMediaUrl (enclosures, disableUseSsl = false) {
 }
 
 async function fetchHead (url) {
+  console.log(`FETCH HEAD FOR FEED: ${url}`)
   return new Promise((resolve, reject) => {
     request.head(url)
       .on('response', (res) => {
@@ -71,7 +74,42 @@ async function restoreFromCache (podcastId, etag) {
   }
 }
 
-exports.getEpisodeInfo = (podcastId, index, option={ useOriginalUrl: false }) => {
+async function fetchEpisode(url) {
+  console.log(`FETCH EPISODE: ${url}`)
+  return new Promise((resolve, reject) => {
+    // 対象が binary の場合 encoding: null としなければならない
+    request.get(url, { encoding: null }, (err, res, body) => {
+      console.log('RESPONSE CODE:', res.statusCode)
+      console.log('RESPONSE HEADERS:', res.headers)
+
+      if (err) {
+        reject(err)
+        return
+      }
+      resolve(body)
+    })
+  })
+}
+
+async function downloadEpisodeToS3(originalUrl) {
+  const bucket = process.env.S3_BUCKET_EPISODE
+  const key = path.basename(originalUrl)
+
+  try {
+    let head = await s3.headObject({ Bucket: bucket, Key: key }).promise()
+    console.log(`Episode ${key} already downloaded.`)
+    return `https://s3-ap-northeast-1.amazonaws.com/${bucket}/${key}`
+  } catch(err) {
+    console.log('The episode does not exist in S3, the episode will be downloaded.')
+  }
+
+  const episodeBody = await fetchEpisode(originalUrl)
+  await s3.putObject({ Bucket: bucket, Key: key, Body: episodeBody }).promise()
+  await s3.putObjectAcl({ Bucket: bucket, Key: key, ACL: 'public-read' }).promise()
+  return `https://s3-ap-northeast-1.amazonaws.com/${bucket}/${key}`
+}
+
+exports.getEpisodeInfo = (podcastId, index, option={ useOriginalScheme: false }) => {
   return new Promise(async (resolve, reject) => {
     if (!targetPodcast) throw new Error('INVALID PODCAST ID')
 
@@ -79,7 +117,10 @@ exports.getEpisodeInfo = (podcastId, index, option={ useOriginalUrl: false }) =>
 
     const cachedFeed = await restoreFromCache(podcastId, head.headers.etag)
     if (cachedFeed) {
-      resolve(cachedFeed[index])
+      const episode = cachedFeed[index]
+      episode.url = await downloadEpisodeToS3(episode.url)
+      console.log('episode:', episode)
+      resolve(episode)
       return
     }
 
@@ -104,7 +145,7 @@ exports.getEpisodeInfo = (podcastId, index, option={ useOriginalUrl: false }) =>
     feedparser.on('data', async (data) => {
       console.log('on data:', data.title)
       if (episodes.length < targetPodcast.MAX_EPISODE_COUNT) {
-        const audioUrl = pickSslMediaUrl(data.enclosures, option['useOriginalUrl'])
+        const audioUrl = pickSslMediaUrl(data.enclosures, option.useOriginalScheme)
         episodes.push({
           title: data.title,
           url: audioUrl,
@@ -116,8 +157,10 @@ exports.getEpisodeInfo = (podcastId, index, option={ useOriginalUrl: false }) =>
           resolved = true
           try {
             await saveToCache(podcastId, episodes, head.headers)
-            console.log('episodes[index]:', episodes[index])
-            resolve(episodes[index])
+            const episode = episodes[index]
+            episode.url = await downloadEpisodeToS3(episode.url)
+            console.log('episode:', episode)
+            resolve(episode)
           } catch (e) {
             console.log(e)
           }
@@ -129,8 +172,10 @@ exports.getEpisodeInfo = (podcastId, index, option={ useOriginalUrl: false }) =>
       console.log('on end')
       try {
         await saveToCache(podcastId, episodes, head.headers)
-        console.log('episodes[index]:', episodes[index])
-        resolve(episodes[index])
+        const episode = episodes[index]
+        episode.url = await downloadEpisodeToS3(episode.url)
+        console.log('episode:', episode)
+        resolve(episode)
       } catch (e) {
         console.log(e)
       }
