@@ -3,7 +3,8 @@
 const path = require('path')
 const request = require('request')
 const FeedParser = require('feedparser')
-const AWS = require('aws-sdk')
+const awsXRay = require('aws-xray-sdk')
+const AWS = awsXRay.captureAWS(require('aws-sdk'))
 
 AWS.config.update({
   region: process.env.AWS_REGION || 'us-east-1'
@@ -35,13 +36,17 @@ function pickSslMediaUrl (enclosures, disableUseSsl = false) {
 async function fetchHead (url) {
   console.log(`FETCH HEAD FOR FEED: ${url}`)
   return new Promise((resolve, reject) => {
-    request.head(url)
-      .on('response', (res) => {
-        resolve(res)
-      })
-      .on('error', (err) => {
-        reject(err)
-      })
+    awsXRay.captureAsyncFunc('fetchHead', (subsegment) => {
+      request.head(url)
+        .on('response', (res) => {
+          resolve(res)
+          subsegment.close()
+        })
+        .on('error', (err) => {
+          reject(err)
+          subsegment.close()
+        })
+    })
   })
 }
 
@@ -58,13 +63,13 @@ async function saveToCache (podcastId, episodes, headers) {
   }
 }
 
-async function restoreFromCache (podcastId, etag) {
+async function restoreFromCache (podcastId, etag, forceUseCache = false) {
   try {
     console.log(`restoreFromCache: ${targetPodcast.TABLE_NAME} ${podcastId}`)
     const restored = await dynamoDb.get({ TableName: targetPodcast.TABLE_NAME, Key: { podcastId } }).promise()
     // console.log(`restored: ${JSON.stringify(restored)}`);
     const cachedEtag = (((restored || {}).Item || {}).headers || {}).etag
-    if (cachedEtag !== etag) {
+    if (!forceUseCache && cachedEtag !== etag) {
       console.log(`ETag changed cache:${cachedEtag} !== current:${etag}`)
       return undefined
     }
@@ -109,80 +114,90 @@ async function downloadEpisodeToS3(originalUrl) {
   return `https://s3-ap-northeast-1.amazonaws.com/${bucket}/${key}`
 }
 
-exports.getEpisodeInfo = (podcastId, index, option={ useOriginalScheme: false }) => {
+exports.getEpisodeInfo = (podcastId, index, option={ useOriginalScheme: false, forceUseCache: true }) => {
   return new Promise(async (resolve, reject) => {
-    if (!targetPodcast) throw new Error('INVALID PODCAST ID')
+    awsXRay.captureAsyncFunc('getEpisodeInfo', async (segGetEpisodeInfo) => {
+      if (!targetPodcast) throw new Error('INVALID PODCAST ID')
 
-    const head = await fetchHead(targetPodcast.FEED_URL)
-
-    const cachedFeed = await restoreFromCache(podcastId, head.headers.etag)
-    if (cachedFeed) {
-      const episode = cachedFeed[index]
-      episode.url = await downloadEpisodeToS3(episode.url)
-      console.log('episode:', episode)
-      resolve(episode)
-      return
-    }
-
-    console.log('CACHE INVALIDATED')
-
-    const feedparser = new FeedParser()
-    const episodes = []
-    let resolved = false
-
-    request.get(targetPodcast.FEED_URL)
-      .on('error', (err, res) => {
-        if (err) {
-          console.error(err)
-          return
-        }
-        console.error(`Bad status res ${res} from ${targetPodcast.FEED_URL}`)
-        if (res && res.code) {
-          reject(new Error(`Bad status ${res.code} from ${targetPodcast.FEED_URL}`))
-        }
-      }).pipe(feedparser)
-
-    feedparser.on('data', async (data) => {
-      console.log('on data:', data.title)
-      if (episodes.length < targetPodcast.MAX_EPISODE_COUNT) {
-        const audioUrl = pickSslMediaUrl(data.enclosures, option.useOriginalScheme)
-        episodes.push({
-          title: data.title,
-          url: audioUrl,
-          published_at: data.pubDate.toISOString()
-        })
-      } else {
-        if (!resolved) {
-          console.log(`data resolved ${data.title}`)
-          resolved = true
-          try {
-            await saveToCache(podcastId, episodes, head.headers)
-            const episode = episodes[index]
-            episode.url = await downloadEpisodeToS3(episode.url)
-            console.log('episode:', episode)
-            resolve(episode)
-          } catch (e) {
-            console.log(e)
-          }
-        }
+      let etag = ''
+      let head = {}
+      if (!option.forceUseCache) {
+        head = await fetchHead(targetPodcast.FEED_URL)
+        etag = head.headers.etag
       }
-    })
 
-    feedparser.on('end', async () => {
-      console.log('on end')
-      try {
-        await saveToCache(podcastId, episodes, head.headers)
-        const episode = episodes[index]
+      const cachedFeed = await restoreFromCache(podcastId, etag, option.forceUseCache)
+      if (cachedFeed) {
+        const episode = cachedFeed[index]
         episode.url = await downloadEpisodeToS3(episode.url)
         console.log('episode:', episode)
         resolve(episode)
-      } catch (e) {
-        console.log(e)
+        segGetEpisodeInfo.close()
+        return
       }
-    })
 
-    feedparser.on('error', () => {
-      console.log('on error')
+      console.log('CACHE INVALIDATED')
+
+      const feedparser = new FeedParser()
+      const episodes = []
+      let resolved = false
+
+      request.get(targetPodcast.FEED_URL)
+        .on('error', (err, res) => {
+          if (err) {
+            console.error(err)
+            return
+          }
+          console.error(`Bad status res ${res} from ${targetPodcast.FEED_URL}`)
+          if (res && res.code) {
+            reject(new Error(`Bad status ${res.code} from ${targetPodcast.FEED_URL}`))
+          }
+        }).pipe(feedparser)
+
+      feedparser.on('data', async (data) => {
+        console.log('on data:', data.title)
+        if (episodes.length < targetPodcast.MAX_EPISODE_COUNT) {
+          const audioUrl = pickSslMediaUrl(data.enclosures, option.useOriginalScheme)
+          episodes.push({
+            title: data.title,
+            url: audioUrl,
+            published_at: data.pubDate.toISOString()
+          })
+        } else {
+          if (!resolved) {
+            console.log(`data resolved ${data.title}`)
+            resolved = true
+            try {
+              await saveToCache(podcastId, episodes, head.headers)
+              const episode = episodes[index]
+              episode.url = await downloadEpisodeToS3(episode.url)
+              console.log('episode:', episode)
+              resolve(episode)
+              segGetEpisodeInfo.close()
+            } catch (e) {
+              console.log(e)
+            }
+          }
+        }
+      })
+
+      feedparser.on('end', async () => {
+        console.log('on end')
+        try {
+          await saveToCache(podcastId, episodes, head.headers)
+          const episode = episodes[index]
+          episode.url = await downloadEpisodeToS3(episode.url)
+          console.log('episode:', episode)
+          resolve(episode)
+          segGetEpisodeInfo.close()
+        } catch (e) {
+          console.log(e)
+        }
+      })
+
+      feedparser.on('error', () => {
+        console.log('on error')
+      })
     })
   })
 }
