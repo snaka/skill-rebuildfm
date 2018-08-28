@@ -1,10 +1,11 @@
 {
-  "name": "hello-world",
+  "name": "rebuild-fm-player",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha",
+    "lint": "eslint . --fix; exit 0"
   },
   "author": "",
   "license": "ISC",
@@ -12,9 +13,19 @@
     "ask-sdk-core": "^2.0.0",
     "ask-sdk-model": "^1.0.0",
     "aws-sdk": "^2.295.0",
+    "aws-xray-sdk": "^2.0.0",
     "feedparser": "^2.2.9",
     "i18next": "^11.6.0",
     "i18next-sprintf-postprocessor": "^0.2.2",
     "request": "^2.88.0"
+  },
+  "devDependencies": {
+    "alexa-skill-test-framework": "^1.2.2",
+    "diff": "^3.5.0",
+    "eslint": "^5.4.0",
+    "mocha": "^5.2.0",
+    "nock": "^9.6.1",
+    "serverless-plugin-tracing": "^2.0.0",
+    "serverless-plugin-warmup": "^3.6.2-rc.1"
   }
 }
