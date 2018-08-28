@@ -1,5 +1,9 @@
 service: skill-rebuildfm-player
 
+plugins:
+  - serverless-plugin-warmup
+  - serverless-plugin-tracing
+
 provider:
   name: aws
   region: ap-northeast-1
@@ -22,6 +26,22 @@ provider:
         - "s3:PutObjectAcl"
       Resource:
         - "arn:aws:s3:::${env:S3_BUCKET_EPISODE}/*"
+    - Effect: "Allow"
+      Action:
+        - "lambda:InvokeFunction"
+      Resource:
+        - Fn::Join:
+          - ":"
+          -
+            - arn:aws:lambda
+            - Ref: AWS::Region
+            - Ref: AWS::AccountId
+            - function:${self:service}-${opt:stage, self:provider.stage}-*
+    - Effect: "Allow"
+      Action:
+        - "xray:PutTraceSegments"
+        - "xray:PutTelemetryRecords"
+      Resource: "*"
 
 resources:
   Resources:
@@ -32,6 +52,10 @@ resources:
         AccessControl: PublicRead
         BucketName: ${env:S3_BUCKET_EPISODE}
 
+custom:
+  warmup:
+    memorySize: 128
+
 package:
   include:
     - node_modules/
@@ -39,6 +63,8 @@ package:
 functions:
   main:
     handler: index.handler
+    warmup: true
+    tracing: true
     events:
       - alexaSkill:
           appId: ${env:SKILL_ID}
