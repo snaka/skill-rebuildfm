@@ -3,14 +3,14 @@
     "publishingInformation": {
       "locales": {
         "ja-JP": {
-          "summary": "Sample Short Description",
+          "summary": "Rebuild.fm を再生する【非公式】スキル",
           "examplePhrases": [
-            "Alexa open hello world",
-            "Alexa tell hello world hello",
-            "Alexa ask hello world say hello"
+            "アレクサ、リビルドエフエムを開いて",
+            "アレクサ、リビルドエフエムで最新のエピソードを再生して",
+            "アレクサ、リビルドエフエムで2番目のエピソードを再生して"
           ],
           "keywords": [],
-          "name": "rebuild-fm-player",
+          "name": "Rebuild.fm プレイヤー",
           "smallIconUri": "https://s3-ap-northeast-1.amazonaws.com/snaka-public/alexa-icons/Sample_108.png",
           "description": "Sample Full Description",
           "largeIconUri": "https://s3-ap-northeast-1.amazonaws.com/snaka-public/alexa-icons/Sample_512.png"
@@ -24,10 +24,29 @@
     "apis": {
       "custom": {
         "endpoint": {
-          "sourceDir": "lambda/custom"
+          "uri": "arn:aws:lambda:ap-northeast-1:105394972992:function:skill-rebuildfm-player-dev-main"
+        },
+        "interfaces": [
+          {
+            "type": "AUDIO_PLAYER"
+          }
+        ],
+        "regions": {
+          "FE": {
+            "endpoint": {
+              "uri": "arn:aws:lambda:ap-northeast-1:105394972992:function:skill-rebuildfm-player-dev-main"
+            }
+          }
         }
       }
     },
-    "manifestVersion": "1.0"
+    "manifestVersion": "1.0",
+    "privacyAndCompliance": {
+      "allowsPurchases": false,
+      "isExportCompliant": true,
+      "containsAds": false,
+      "isChildDirected": false,
+      "usesPersonalInfo": false
+    }
   }
 }
