@@ -32,6 +32,15 @@ const LocalizationInterceptor = {
   }
 }
 
+const WarmUpHandler = {
+  canHandle (handlerInput) {
+    return handlerInput.requestEnvelope.source === 'serverless-plugin-warmup'
+  },
+  handle (handlerInput) {
+    console.log('WarmUP - Lambda is warm!')
+  }
+}
+
 const PlayPodcastIntentHandler = {
   canHandle (handlerInput) {
     return handlerInput.requestEnvelope.request.type === 'LaunchRequest' ||
@@ -473,6 +482,7 @@ exports.handler = skillBuilder
     LoggingInterceptor
   )
   .addRequestHandlers(
+    WarmUpHandler,
     PlayPodcastIntentHandler,
     PlayPodcastByIndexIntentHandler,
     StartOverIntentHandler,
