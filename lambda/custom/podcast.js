@@ -109,7 +109,7 @@ async function downloadEpisodeToS3(originalUrl) {
   }
 
   const episodeBody = await fetchEpisode(originalUrl)
-  await s3.putObject({ Bucket: bucket, Key: key, Body: episodeBody }).promise()
+  await s3.putObject({ Bucket: bucket, Key: key, Body: episodeBody, StorageClass: "REDUCED_REDUNDANCY" }).promise()
   await s3.putObjectAcl({ Bucket: bucket, Key: key, ACL: 'public-read' }).promise()
   return `https://s3-ap-northeast-1.amazonaws.com/${bucket}/${key}`
 }
