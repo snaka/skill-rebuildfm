@@ -49,7 +49,10 @@ resources:
       Type: AWS::S3::Bucket
       DeletionPolicy: Retain
       Properties:
-        AccessControl: PublicRead
+        LifecycleConfiguration:
+          Rules:
+            - Status: "Enabled"
+              ExpirationInDays: 31
         BucketName: ${env:S3_BUCKET_EPISODE}
 
 custom:
