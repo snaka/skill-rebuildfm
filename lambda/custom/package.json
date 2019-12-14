@@ -20,7 +20,7 @@
     "request": "^2.88.0"
   },
   "devDependencies": {
-    "alexa-skill-test-framework": "1.2.2",
+    "alexa-skill-test-framework": "1.2.4",
     "diff": "3.5.0",
     "eslint": "5.4.0",
     "mocha": "5.2.0",
