@@ -79,7 +79,7 @@ async function restoreFromCache (podcastId, etag, forceUseCache = false) {
   }
 }
 
-async function fetchEpisode(url) {
+async function fetchEpisode (url) {
   console.log(`FETCH EPISODE: ${url}`)
   return new Promise((resolve, reject) => {
     // 対象が binary の場合 encoding: null としなければならない
@@ -96,26 +96,29 @@ async function fetchEpisode(url) {
   })
 }
 
-async function downloadEpisodeToS3(originalUrl) {
+async function downloadEpisodeToS3 (originalUrl) {
   const bucket = process.env.S3_BUCKET_EPISODE
   const key = path.basename(originalUrl)
 
   try {
-    let head = await s3.headObject({ Bucket: bucket, Key: key }).promise()
+    const head = await s3.headObject({ Bucket: bucket, Key: key }).promise()
+    if (!head) {
+      throw new Error('key not found')
+    }
     console.log(`Episode ${key} already downloaded.`)
     return `https://s3-ap-northeast-1.amazonaws.com/${bucket}/${key}`
-  } catch(err) {
+  } catch (err) {
     console.log('The episode does not exist in S3, the episode will be downloaded.')
   }
 
   const episodeBody = await fetchEpisode(originalUrl)
-  await s3.putObject({ Bucket: bucket, Key: key, Body: episodeBody, StorageClass: "REDUCED_REDUNDANCY" }).promise()
+  await s3.putObject({ Bucket: bucket, Key: key, Body: episodeBody, StorageClass: 'REDUCED_REDUNDANCY' }).promise()
   await s3.putObjectAcl({ Bucket: bucket, Key: key, ACL: 'public-read' }).promise()
   return `https://s3-ap-northeast-1.amazonaws.com/${bucket}/${key}`
 }
 
-exports.getEpisodeInfo = (podcastId, index, option={ useOriginalScheme: false, forceUseCache: true }) => {
-  return new Promise(async (resolve, reject) => {
+exports.getEpisodeInfo = (podcastId, index, option = { useOriginalScheme: false, forceUseCache: true }) => {
+  return new Promise((resolve, reject) => {
     awsXRay.captureAsyncFunc('getEpisodeInfo', async (segGetEpisodeInfo) => {
       if (!targetPodcast) throw new Error('INVALID PODCAST ID')
 

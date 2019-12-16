@@ -156,7 +156,7 @@ const FastforwardIntentHandler = {
 
     const skipMinutes = getSlotValueAsInt(handlerInput.requestEnvelope, 'skipMinutes')
 
-    let newOffset = offset + skipMinutes * 60000
+    const newOffset = offset + skipMinutes * 60000
 
     console.log(`FASTFORWARD: token ${token} offset ${offset} skipMinutes ${skipMinutes}`)
 
@@ -380,7 +380,7 @@ const AudioPlayerEventHandler = {
     } = handlerInput
     const audioPlayerEventName = requestEnvelope.request.type.split('.')[1]
 
-    let token = getToken(handlerInput)
+    const token = getToken(handlerInput)
 
     switch (audioPlayerEventName) {
       case 'PlaybackStarted':
