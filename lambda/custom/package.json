@@ -15,7 +15,7 @@
     "aws-sdk": "^2.295.0",
     "aws-xray-sdk": "^2.0.0",
     "feedparser": "^2.2.9",
-    "i18next": "^11.6.0",
+    "i18next": "^21.0.0",
     "i18next-sprintf-postprocessor": "^0.2.2",
     "request": "^2.88.0"
   },
