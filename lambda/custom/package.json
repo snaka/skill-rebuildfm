@@ -23,7 +23,7 @@
     "alexa-skill-test-framework": "1.2.2",
     "diff": "3.5.0",
     "eslint": "5.4.0",
-    "mocha": "5.2.0",
+    "mocha": "9.2.2",
     "nock": "9.6.1",
     "serverless-plugin-tracing": "2.0.0",
     "serverless-plugin-warmup": "3.6.2-rc.1"
