@@ -21,7 +21,7 @@
   },
   "devDependencies": {
     "alexa-skill-test-framework": "1.2.2",
-    "diff": "3.5.0",
+    "diff": "5.2.0",
     "eslint": "5.4.0",
     "mocha": "5.2.0",
     "nock": "9.6.1",
